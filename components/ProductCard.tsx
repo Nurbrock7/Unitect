@@ -4,21 +4,64 @@ type ProductCardProps = {
   slug: string;
   name: string;
   description: string;
-  price: number;
+  categoryName?: string;
 };
 
-export default function ProductCard({ slug, name, description, price }: ProductCardProps) {
+export default function ProductCard({
+  slug,
+  name,
+  description,
+  categoryName,
+}: ProductCardProps) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-lg font-semibold">{name}</h3>
-      <p className="mt-2 text-sm text-slate-600">{description}</p>
-      <p className="mt-4 text-lg font-bold text-brand">${price.toFixed(2)}</p>
-      <Link
-        href={`/product/${slug}`}
-        className="mt-4 inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-      >
-        View product
-      </Link>
+    <article className="card group flex flex-col">
+      {/* Image placeholder */}
+      <div className="mb-4 flex h-48 items-center justify-center rounded-lg bg-neutral-100">
+        <svg
+          className="h-16 w-16 text-neutral-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      </div>
+
+      {categoryName && (
+        <span className="mb-2 text-xs font-semibold uppercase tracking-wider text-accent">
+          {categoryName}
+        </span>
+      )}
+
+      <h3 className="text-lg font-semibold text-neutral-900 group-hover:text-primary">
+        {name}
+      </h3>
+
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-neutral-600">
+        {description.length > 120
+          ? description.slice(0, 120) + "..."
+          : description}
+      </p>
+
+      <div className="mt-4 flex gap-2">
+        <Link
+          href={`/products/${slug}`}
+          className="btn-secondary flex-1 text-center text-xs"
+        >
+          View Details
+        </Link>
+        <Link
+          href={`/quote?product=${encodeURIComponent(name)}`}
+          className="btn-primary flex-1 text-center text-xs"
+        >
+          Request Quote
+        </Link>
+      </div>
     </article>
   );
 }
