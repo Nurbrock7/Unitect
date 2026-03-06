@@ -1,6 +1,4 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import Product from "@/models/Product";
-import Category from "@/models/Category";
+import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -16,28 +14,40 @@ type ProductItem = { _id: string; slug: string; name: string; description: strin
 
 async function getProducts(categorySlug?: string) {
   try {
-    await connectToDatabase();
-    const categoriesRaw = await Category.find({ isActive: true })
-      .sort({ sortOrder: 1 })
-      .lean();
-    const categories: CategoryItem[] = JSON.parse(JSON.stringify(categoriesRaw));
+    const { data: catData, error: catErr } = await supabase
+      .from("categories")
+      .select("id, name, slug")
+      .eq("is_active", true)
+      .order("sort_order");
 
-    let filter: Record<string, unknown> = { isActive: true };
+    if (catErr || !catData || catData.length === 0) throw new Error("empty");
+    const categories: CategoryItem[] = catData.map((c) => ({ _id: c.id, name: c.name, slug: c.slug }));
+
+    let query = supabase
+      .from("products")
+      .select("id, name, slug, description, category:categories(name)")
+      .eq("is_active", true)
+      .order("sort_order");
+
     if (categorySlug) {
-      const cat = categories.find((c) => c.slug === categorySlug);
+      const cat = catData.find((c) => c.slug === categorySlug);
       if (cat) {
-        filter = { ...filter, category: cat._id };
+        query = query.eq("category_id", cat.id);
       }
     }
 
-    const productsRaw = await Product.find(filter)
-      .populate("category", "name slug")
-      .sort({ sortOrder: 1 })
-      .lean();
-    const products: ProductItem[] = JSON.parse(JSON.stringify(productsRaw));
+    const { data: prodData, error: prodErr } = await query;
+    if (prodErr) throw prodErr;
 
-    if (categories.length > 0) return { categories, products };
-    throw new Error("empty");
+    const products: ProductItem[] = (prodData || []).map((p) => ({
+      _id: String(p.id),
+      slug: String(p.slug),
+      name: String(p.name),
+      description: String(p.description),
+      category: (Array.isArray(p.category) ? p.category[0] : p.category) as { name: string } | undefined,
+    }));
+
+    return { categories, products };
   } catch {
     // Fallback to static data when DB is unavailable
     const { fallbackCategories, fallbackProducts } = await import("@/lib/fallback-data");

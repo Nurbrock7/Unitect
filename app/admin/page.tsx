@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import Product from "@/models/Product";
-import QuoteRequest from "@/models/QuoteRequest";
-import Category from "@/models/Category";
+import { supabase } from "@/lib/supabase";
 import AdminShell from "@/components/AdminShell";
 import Link from "next/link";
 
@@ -11,28 +8,27 @@ export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
-  await connectToDatabase();
+  const [prodRes, catRes, totalRes, newRes, recentRes] = await Promise.all([
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("categories").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("quote_requests").select("id", { count: "exact", head: true }),
+    supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabase.from("quote_requests").select("*").order("created_at", { ascending: false }).limit(5),
+  ]);
 
-  const [productCount, categoryCount, totalQuotes, newQuotes] =
-    await Promise.all([
-      Product.countDocuments({ isActive: true }),
-      Category.countDocuments({ isActive: true }),
-      QuoteRequest.countDocuments(),
-      QuoteRequest.countDocuments({ status: "new" }),
-    ]);
+  const productCount = prodRes.count || 0;
+  const categoryCount = catRes.count || 0;
+  const totalQuotes = totalRes.count || 0;
+  const newQuotes = newRes.count || 0;
 
-  const recentQuotesRaw = await QuoteRequest.find()
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean();
-  const recentQuotes = JSON.parse(JSON.stringify(recentQuotesRaw)) as {
-    _id: string;
-    name: string;
-    company: string;
-    product: string;
-    status: string;
-    createdAt: string;
-  }[];
+  const recentQuotes = (recentRes.data || []).map((q) => ({
+    _id: q.id,
+    name: q.name,
+    company: q.company,
+    product: q.product,
+    status: q.status,
+    createdAt: q.created_at,
+  }));
 
   const stats = [
     { label: "Active Products", value: productCount, href: "/admin/products" },

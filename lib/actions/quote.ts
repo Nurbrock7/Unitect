@@ -1,7 +1,6 @@
 "use server";
 
-import { connectToDatabase } from "@/lib/mongodb";
-import QuoteRequest from "@/models/QuoteRequest";
+import { supabase } from "@/lib/supabase";
 
 export type QuoteFormState = {
   success: boolean;
@@ -30,8 +29,7 @@ export async function submitQuoteRequest(
   }
 
   try {
-    await connectToDatabase();
-    await QuoteRequest.create({
+    const { error } = await supabase.from("quote_requests").insert({
       name,
       company,
       email,
@@ -40,6 +38,8 @@ export async function submitQuoteRequest(
       quantity,
       message,
     });
+
+    if (error) throw error;
 
     return {
       success: true,

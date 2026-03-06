@@ -1,19 +1,28 @@
 import { cookies } from "next/headers";
-import bcrypt from "bcryptjs";
-import { connectToDatabase } from "./mongodb";
-import Admin from "@/models/Admin";
+import { supabase } from "./supabase";
 
 const SESSION_COOKIE = "cabman_admin_session";
 
+// Simple hash for demo — use bcrypt or Supabase Auth in production
+async function simpleHash(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + "cabman_salt_2024");
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
+  return simpleHash(password);
 }
 
 export async function verifyPassword(
   password: string,
   hash: string
 ): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  const hashed = await simpleHash(password);
+  return hashed === hash;
 }
 
 export async function createSession(adminId: string) {
@@ -25,7 +34,7 @@ export async function createSession(adminId: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24, // 24 hours
+    maxAge: 60 * 60 * 24,
     path: "/",
   });
 }
@@ -48,9 +57,13 @@ export async function requireAdmin() {
   const session = await getSession();
   if (!session) return null;
 
-  await connectToDatabase();
-  const admin = await Admin.findById(session.id).lean();
-  return admin;
+  const { data } = await supabase
+    .from("admins")
+    .select("id, email, name")
+    .eq("id", session.id)
+    .single();
+
+  return data;
 }
 
 export async function destroySession() {

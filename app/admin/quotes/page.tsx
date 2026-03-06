@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import QuoteRequest from "@/models/QuoteRequest";
+import { supabase } from "@/lib/supabase";
 import AdminShell from "@/components/AdminShell";
 import AdminQuoteList from "@/components/AdminQuoteList";
 
@@ -9,12 +8,23 @@ export default async function AdminQuotesPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
-  await connectToDatabase();
-  const quotes = await QuoteRequest.find()
-    .sort({ createdAt: -1 })
-    .lean();
+  const { data } = await supabase
+    .from("quote_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  const serialized = JSON.parse(JSON.stringify(quotes));
+  const quotes = (data || []).map((q) => ({
+    _id: q.id,
+    name: q.name,
+    company: q.company,
+    email: q.email,
+    phone: q.phone,
+    product: q.product,
+    quantity: q.quantity,
+    message: q.message,
+    status: q.status,
+    createdAt: q.created_at,
+  }));
 
   return (
     <AdminShell>
@@ -24,7 +34,7 @@ export default async function AdminQuotesPage() {
       </p>
 
       <div className="mt-6">
-        <AdminQuoteList quotes={serialized} />
+        <AdminQuoteList quotes={quotes} />
       </div>
     </AdminShell>
   );

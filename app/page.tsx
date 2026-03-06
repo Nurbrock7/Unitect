@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { connectToDatabase } from "@/lib/mongodb";
-import Product from "@/models/Product";
+import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import type { Metadata } from "next";
 
@@ -78,18 +77,28 @@ const whyChoose = [
 
 async function getFeaturedProducts() {
   try {
-    await connectToDatabase();
-    const products = await Product.find({ isFeatured: true, isActive: true })
-      .populate("category", "name")
-      .limit(6)
-      .lean();
-    const result = JSON.parse(JSON.stringify(products));
-    if (result.length > 0) return result;
-    throw new Error("empty");
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, slug, description, category:categories(name)")
+      .eq("is_featured", true)
+      .eq("is_active", true)
+      .limit(6);
+
+    if (error || !data || data.length === 0) throw new Error("empty");
+
+    return data.map((p) => ({
+      _id: String(p.id),
+      name: String(p.name),
+      slug: String(p.slug),
+      description: String(p.description),
+      category: (Array.isArray(p.category) ? p.category[0] : p.category) as { name: string } | undefined,
+    }));
   } catch {
-    // Fallback to static data when DB is unavailable
     const { fallbackProducts } = await import("@/lib/fallback-data");
-    return fallbackProducts.filter((p) => p.isFeatured).slice(0, 6);
+    return fallbackProducts
+      .filter((p) => p.isFeatured)
+      .slice(0, 6)
+      .map((p) => ({ ...p, _id: p._id }));
   }
 }
 

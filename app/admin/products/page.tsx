@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import Product from "@/models/Product";
-import Category from "@/models/Category";
+import { supabase } from "@/lib/supabase";
 import AdminShell from "@/components/AdminShell";
 import AdminProductList from "@/components/AdminProductList";
 import AdminProductForm from "@/components/AdminProductForm";
@@ -12,20 +10,28 @@ export default async function AdminProductsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
-  await connectToDatabase();
-
-  const [products, categories] = await Promise.all([
-    Product.find()
-      .populate("category", "name")
-      .sort({ createdAt: -1 })
-      .lean(),
-    Category.find().sort({ sortOrder: 1 }).lean(),
+  const [prodRes, catRes] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, sku, is_featured, is_active, created_at, category:categories(name)")
+      .order("created_at", { ascending: false }),
+    supabase.from("categories").select("id, name, slug").order("sort_order"),
   ]);
 
-  const serialized = {
-    products: JSON.parse(JSON.stringify(products)),
-    categories: JSON.parse(JSON.stringify(categories)),
-  };
+  const products = (prodRes.data || []).map((p) => ({
+    _id: String(p.id),
+    name: String(p.name),
+    sku: String(p.sku),
+    isFeatured: Boolean(p.is_featured),
+    isActive: Boolean(p.is_active),
+    createdAt: String(p.created_at),
+    category: (Array.isArray(p.category) ? p.category[0] : p.category) as { name: string } | undefined,
+  }));
+
+  const categories = (catRes.data || []).map((c) => ({
+    _id: c.id,
+    name: c.name,
+  }));
 
   return (
     <AdminShell>
@@ -39,13 +45,12 @@ export default async function AdminProductsPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Product Form */}
         <div className="lg:col-span-1 space-y-6">
           <div className="card">
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Add Product
             </h2>
-            <AdminProductForm categories={serialized.categories} />
+            <AdminProductForm categories={categories} />
           </div>
 
           <div className="card">
@@ -56,9 +61,8 @@ export default async function AdminProductsPage() {
           </div>
         </div>
 
-        {/* Product List */}
         <div className="lg:col-span-2">
-          <AdminProductList products={serialized.products} />
+          <AdminProductList products={products} />
         </div>
       </div>
     </AdminShell>

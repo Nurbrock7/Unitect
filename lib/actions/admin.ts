@@ -1,10 +1,6 @@
 "use server";
 
-import { connectToDatabase } from "@/lib/mongodb";
-import Admin from "@/models/Admin";
-import Product from "@/models/Product";
-import Category from "@/models/Category";
-import QuoteRequest from "@/models/QuoteRequest";
+import { supabase } from "@/lib/supabase";
 import {
   verifyPassword,
   createSession,
@@ -31,19 +27,22 @@ export async function loginAdmin(
   }
 
   try {
-    await connectToDatabase();
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const { data: admin } = await supabase
+      .from("admins")
+      .select("id, password_hash")
+      .eq("email", email.toLowerCase())
+      .single();
 
     if (!admin) {
       return { success: false, message: "Invalid credentials." };
     }
 
-    const isValid = await verifyPassword(password, admin.passwordHash);
+    const isValid = await verifyPassword(password, admin.password_hash);
     if (!isValid) {
       return { success: false, message: "Invalid credentials." };
     }
 
-    await createSession(admin._id.toString());
+    await createSession(admin.id);
   } catch (error) {
     console.error("Login error:", error);
     return { success: false, message: "Something went wrong." };
@@ -68,14 +67,14 @@ export async function createProduct(
   const slug = formData.get("slug") as string;
   const sku = formData.get("sku") as string;
   const description = formData.get("description") as string;
-  const category = formData.get("category") as string;
-  const useCases = (formData.get("useCases") as string)
+  const category_id = formData.get("category") as string;
+  const use_cases = ((formData.get("useCases") as string) || "")
     .split("\n")
     .filter(Boolean);
-  const isFeatured = formData.get("isFeatured") === "on";
+  const is_featured = formData.get("isFeatured") === "on";
   const specsRaw = formData.get("specifications") as string;
 
-  if (!name || !slug || !sku || !description || !category) {
+  if (!name || !slug || !sku || !description || !category_id) {
     return { success: false, message: "Please fill in all required fields." };
   }
 
@@ -93,17 +92,18 @@ export async function createProduct(
   }
 
   try {
-    await connectToDatabase();
-    await Product.create({
+    const { error } = await supabase.from("products").insert({
       name,
       slug,
       sku,
       description,
-      category,
-      useCases,
-      isFeatured,
+      category_id,
+      use_cases,
+      is_featured,
       specifications,
     });
+
+    if (error) throw error;
 
     revalidatePath("/admin/products");
     revalidatePath("/products");
@@ -127,12 +127,12 @@ export async function updateProduct(
   const slug = formData.get("slug") as string;
   const sku = formData.get("sku") as string;
   const description = formData.get("description") as string;
-  const category = formData.get("category") as string;
-  const useCases = (formData.get("useCases") as string)
+  const category_id = formData.get("category") as string;
+  const use_cases = ((formData.get("useCases") as string) || "")
     .split("\n")
     .filter(Boolean);
-  const isFeatured = formData.get("isFeatured") === "on";
-  const isActive = formData.get("isActive") === "on";
+  const is_featured = formData.get("isFeatured") === "on";
+  const is_active = formData.get("isActive") === "on";
   const specsRaw = formData.get("specifications") as string;
 
   const specifications: Record<string, string> = {};
@@ -149,18 +149,23 @@ export async function updateProduct(
   }
 
   try {
-    await connectToDatabase();
-    await Product.findByIdAndUpdate(productId, {
-      name,
-      slug,
-      sku,
-      description,
-      category,
-      useCases,
-      isFeatured,
-      isActive,
-      specifications,
-    });
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name,
+        slug,
+        sku,
+        description,
+        category_id,
+        use_cases,
+        is_featured,
+        is_active,
+        specifications,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", productId);
+
+    if (error) throw error;
 
     revalidatePath("/admin/products");
     revalidatePath("/products");
@@ -177,8 +182,13 @@ export async function deleteProduct(productId: string) {
   if (!admin) return { success: false, message: "Unauthorized" };
 
   try {
-    await connectToDatabase();
-    await Product.findByIdAndDelete(productId);
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productId);
+
+    if (error) throw error;
+
     revalidatePath("/admin/products");
     revalidatePath("/products");
     return { success: true, message: "Product deleted." };
@@ -192,8 +202,13 @@ export async function updateQuoteStatus(quoteId: string, status: string) {
   if (!admin) return { success: false, message: "Unauthorized" };
 
   try {
-    await connectToDatabase();
-    await QuoteRequest.findByIdAndUpdate(quoteId, { status });
+    const { error } = await supabase
+      .from("quote_requests")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", quoteId);
+
+    if (error) throw error;
+
     revalidatePath("/admin/quotes");
     return { success: true, message: "Status updated." };
   } catch {
@@ -217,8 +232,12 @@ export async function createCategory(
   }
 
   try {
-    await connectToDatabase();
-    await Category.create({ name, slug, description });
+    const { error } = await supabase
+      .from("categories")
+      .insert({ name, slug, description });
+
+    if (error) throw error;
+
     revalidatePath("/admin/products");
     return { success: true, message: "Category created." };
   } catch (error: unknown) {

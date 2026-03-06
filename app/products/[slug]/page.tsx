@@ -1,5 +1,4 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import Product from "@/models/Product";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -10,14 +9,22 @@ type Props = {
 
 async function getProduct(slug: string) {
   try {
-    await connectToDatabase();
-    const product = await Product.findOne({ slug, isActive: true })
-      .populate("category", "name slug")
-      .lean();
-    if (product) return JSON.parse(JSON.stringify(product));
-    throw new Error("not found");
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, category:categories(name, slug)")
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .single();
+
+    if (error || !data) throw new Error("not found");
+
+    return {
+      ...data,
+      category: (Array.isArray(data.category) ? data.category[0] : data.category) as { name: string; slug: string } | undefined,
+      specifications: (data.specifications || {}) as Record<string, string>,
+      useCases: (data.use_cases || []) as string[],
+    };
   } catch {
-    // Fallback to static data when DB is unavailable
     const { fallbackProducts } = await import("@/lib/fallback-data");
     return fallbackProducts.find((p) => p.slug === slug) || null;
   }
