@@ -83,9 +83,13 @@ async function getFeaturedProducts() {
       .populate("category", "name")
       .limit(6)
       .lean();
-    return JSON.parse(JSON.stringify(products));
+    const result = JSON.parse(JSON.stringify(products));
+    if (result.length > 0) return result;
+    throw new Error("empty");
   } catch {
-    return [];
+    // Fallback to static data when DB is unavailable
+    const { fallbackProducts } = await import("@/lib/fallback-data");
+    return fallbackProducts.filter((p) => p.isFeatured).slice(0, 6);
   }
 }
 

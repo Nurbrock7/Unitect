@@ -8,32 +8,33 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  await connectToDatabase();
-  const product = await Product.findOne({ slug, isActive: true }).lean();
-
-  if (!product) {
-    return { title: "Product Not Found" };
-  }
-
-  const p = product as unknown as { name: string; description: string };
-  return {
-    title: p.name,
-    description: p.description,
-  };
-}
-
 async function getProduct(slug: string) {
   try {
     await connectToDatabase();
     const product = await Product.findOne({ slug, isActive: true })
       .populate("category", "name slug")
       .lean();
-    return product ? JSON.parse(JSON.stringify(product)) : null;
+    if (product) return JSON.parse(JSON.stringify(product));
+    throw new Error("not found");
   } catch {
-    return null;
+    // Fallback to static data when DB is unavailable
+    const { fallbackProducts } = await import("@/lib/fallback-data");
+    return fallbackProducts.find((p) => p.slug === slug) || null;
   }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  if (!product) {
+    return { title: "Product Not Found" };
+  }
+
+  return {
+    title: product.name,
+    description: product.description,
+  };
 }
 
 export default async function ProductPage({ params }: Props) {

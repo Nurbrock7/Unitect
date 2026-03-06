@@ -36,9 +36,25 @@ async function getProducts(categorySlug?: string) {
       .lean();
     const products: ProductItem[] = JSON.parse(JSON.stringify(productsRaw));
 
-    return { categories, products };
+    if (categories.length > 0) return { categories, products };
+    throw new Error("empty");
   } catch {
-    return { categories: [] as CategoryItem[], products: [] as ProductItem[] };
+    // Fallback to static data when DB is unavailable
+    const { fallbackCategories, fallbackProducts } = await import("@/lib/fallback-data");
+    const categories: CategoryItem[] = fallbackCategories;
+    let products: ProductItem[] = fallbackProducts.map((p) => ({
+      ...p,
+      category: { name: p.category.name },
+    }));
+    if (categorySlug) {
+      const cat = fallbackCategories.find((c) => c.slug === categorySlug);
+      if (cat) {
+        products = fallbackProducts
+          .filter((p) => p.category.slug === categorySlug)
+          .map((p) => ({ ...p, category: { name: p.category.name } }));
+      }
+    }
+    return { categories, products };
   }
 }
 
