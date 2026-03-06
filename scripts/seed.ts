@@ -3,6 +3,24 @@
 // Requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local
 
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+// Load .env.local manually (tsx doesn't auto-load it)
+try {
+  const envPath = resolve(process.cwd(), ".env.local");
+  const envContent = readFileSync(envPath, "utf-8");
+  envContent.split("\n").forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const [key, ...vals] = trimmed.split("=");
+    if (key && vals.length) {
+      process.env[key.trim()] = vals.join("=").trim();
+    }
+  });
+} catch {
+  // .env.local not found, rely on existing env vars
+}
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
