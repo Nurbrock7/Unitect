@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { productImages, cataloguePage } from "@/lib/product-images";
+import ProductGallery from "@/components/ProductGallery";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -84,22 +86,12 @@ export default async function ProductPage({ params }: Props) {
       <section className="section-padding bg-white">
         <div className="container-max">
           <div className="grid gap-8 lg:grid-cols-2">
-            {/* Image */}
-            <div className="flex items-center justify-center rounded-xl bg-neutral-100 p-12">
-              <svg
-                className="h-32 w-32 text-neutral-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
+            {/* Imagery */}
+            <ProductGallery
+              name={product.name}
+              images={productImages(product)}
+              cataloguePage={cataloguePage(product)}
+            />
 
             {/* Details */}
             <div>

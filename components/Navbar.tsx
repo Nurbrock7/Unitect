@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 
 const navigation = [
   { name: "Home", href: "/" },
+  { name: "About Us", href: "/about" },
   { name: "Products", href: "/products" },
   { name: "Industries", href: "/industries" },
   { name: "Cable ID Solutions", href: "/cable-identification" },
@@ -17,18 +19,14 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <nav className="container-max flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-lg font-black text-white">
-            C
-          </div>
-          <div>
-            <span className="text-xl font-bold tracking-tight text-primary">
-              CABMAN
-            </span>
-            <span className="hidden text-[10px] leading-none text-neutral-500 sm:block">
-              Cable Accessories & Identification
-            </span>
-          </div>
+        <Link href="/">
+          <Image
+            src="/cabman-logo.png"
+            alt="CABMAN Logo"
+            width={160}
+            height={46}
+            priority
+          />
         </Link>
 
         {/* Desktop nav */}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { primaryProductImage } from "@/lib/product-images";
 import ProductCard from "@/components/ProductCard";
+import HeroSlideshow from "@/components/HeroSlideshow";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -79,7 +81,7 @@ async function getFeaturedProducts() {
   try {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, category:categories(name)")
+      .select("id, name, slug, description, images, category:categories(name)")
       .eq("is_featured", true)
       .eq("is_active", true)
       .limit(6);
@@ -92,13 +94,14 @@ async function getFeaturedProducts() {
       slug: String(p.slug),
       description: String(p.description),
       category: (Array.isArray(p.category) ? p.category[0] : p.category) as { name: string } | undefined,
+      image: primaryProductImage(p),
     }));
   } catch {
     const { fallbackProducts } = await import("@/lib/fallback-data");
     return fallbackProducts
       .filter((p) => p.isFeatured)
       .slice(0, 6)
-      .map((p) => ({ ...p, _id: p._id }));
+      .map((p) => ({ ...p, _id: p._id, image: p.image }));
   }
 }
 
@@ -107,39 +110,7 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-primary">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-600 to-primary-700" />
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(249,115,22,0.3),transparent_70%)]" />
-        </div>
-        <div className="container-max relative px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
-          <div className="max-w-3xl">
-            <span className="inline-block rounded-full bg-accent/20 px-4 py-1.5 text-sm font-semibold text-accent">
-              Trusted by Industry Leaders
-            </span>
-            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Cable Accessories &{" "}
-              <span className="text-accent">Identification Solutions</span> for
-              Industry
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-neutral-300">
-              CABMAN is your specialist supplier of cable ties, heat shrink
-              tubing, cable markers, ferrules, cable glands, and identification
-              labels. Serving electrical contractors, mining, telecom, and data
-              centres across Southern Africa.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link href="/quote" className="btn-primary text-base">
-                Request a Quote
-              </Link>
-              <Link href="/products" className="btn-white text-base">
-                Browse Products
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroSlideshow />
 
       {/* About / Intro Section */}
       <section id="about" className="section-padding bg-white">
@@ -243,6 +214,7 @@ export default async function HomePage() {
                     name={product.name}
                     description={product.description}
                     categoryName={product.category?.name}
+                    image={(product as { image?: string }).image}
                   />
                 )
               )}

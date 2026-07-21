@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT NOT NULL,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   images TEXT[] DEFAULT '{}',
+  catalogue_page TEXT DEFAULT '',
   specifications JSONB DEFAULT '{}',
   use_cases TEXT[] DEFAULT '{}',
   is_featured BOOLEAN DEFAULT false,
@@ -59,6 +60,9 @@ CREATE TABLE IF NOT EXISTS admins (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration for databases created before catalogue_page existed.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS catalogue_page TEXT DEFAULT '';
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id, is_active);
